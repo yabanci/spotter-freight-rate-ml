@@ -12,14 +12,21 @@ The objective is to accurately predict the `posted_rate` ($) for freight loads g
 - **December Chart Inputs (`data/december_chart_inputs.csv`)**: 31 daily loads for a fixed lane (Lexington -> Fort Wayne, 360 miles, Dry Van, 32,000 lbs) throughout December 2025.
 
 ### Model Formulation: Residual Gradient Boosting
-Exploratory data analysis revealed that `distance * quote_signal` serves as a baseline market expectation ($MAE = \$232.26$). However, supply-demand surges, equipment premiums (Reefer and Flatbed vs. Dry Van), route circuity, and macro-market volatility introduce substantial deviations. 
+Exploratory data analysis revealed that `distance * quote_signal` serves as a baseline market expectation (MAE = \$232.26). However, supply-demand surges, equipment premiums (Reefer and Flatbed vs. Dry Van), route circuity, and macro-market volatility introduce substantial deviations. 
 
 Instead of predicting total rate directly (where large distances dominate the loss gradient), the primary model predicts the **Rate Residual**:
-$$\text{residual} = \text{posted\_rate} - (\text{distance} \times \text{quote\_signal})$$
-The final prediction is reconstructed as:
-$$\widehat{\text{posted\_rate}} = \max(50.0, (\text{distance} \times \text{quote\_signal}) + \widehat{\text{residual}})$$
 
-Trained with an **$L_1$ (MAE) objective**, this formulation achieved a **53.2% error reduction** over the baseline in out-of-time evaluation, reducing MAE from **$246.02** to **$115.02**.
+```
+residual = posted_rate - (distance * quote_signal)
+```
+
+The final prediction is reconstructed as:
+
+```
+predicted_rate = max(50.0, distance * quote_signal + predicted_residual)
+```
+
+Trained with an **L1 (MAE) objective**, this formulation achieved a **53.2% error reduction** over the baseline in out-of-time evaluation, reducing MAE from **\$246.02** to **\$115.02**.
 
 ---
 
@@ -45,12 +52,12 @@ We implemented a strict **Out-of-Time (Temporal) Validation** to prevent look-ah
 - **Train Window**: January 1, 2025 – August 31, 2025 (38,477 loads)
 - **Validation Window**: September 1, 2025 – October 31, 2025 (9,523 loads)
 
-| Strategy / Model | Validation MAE ($) | RMSE ($) | $R^2$ |
+| Strategy / Model | Validation MAE ($) | RMSE ($) | R² |
 | :--- | :---: | :---: | :---: |
-| Naive Quote Baseline (`distance * quote_signal`) | $246.02 | $674.57 | 0.801 |
-| Direct LightGBM (`posted_rate`) | $166.07 | $652.10 | 0.814 |
-| Rate-Per-Mile LightGBM (`rpm * distance`) | $155.05 | $648.30 | 0.819 |
-| **Residual LightGBM ($L_1$ Loss) [Selected]** | **$115.02** | **$635.66** | **0.826** |
+| Naive Quote Baseline (`distance * quote_signal`) | \$246.02 | \$674.57 | 0.801 |
+| Direct LightGBM (`posted_rate`) | \$166.07 | \$652.10 | 0.814 |
+| Rate-Per-Mile LightGBM (`rpm * distance`) | \$155.05 | \$648.30 | 0.819 |
+| **Residual LightGBM (L1 Loss) [Selected]** | **\$115.02** | **\$635.66** | **0.826** |
 
 ---
 
@@ -87,4 +94,4 @@ This script will:
 - `validation_predictions.csv`: 12,000 rows (`load_id,predicted_rate`), verified by `score.py`.
 - `data/december_chart_inputs.csv`: 31 daily rows filled with realistic rate predictions.
 - `scorer_results/candidate_december.png`: Generated chart reflecting intra-week seasonality and end-of-year market dynamics.
-- `REPORT.md` / `report.pdf`: Comprehensive documentation of methodology, model design trade-offs, and production considerations.
+- `REPORT.md` / `report.pdf` / `report.docx`: Comprehensive documentation of methodology, model design trade-offs, and production considerations.
